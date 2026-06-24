@@ -75,7 +75,7 @@ export function buildTaskCard(task: Task): any[] {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildHomeView(tasks: Task[], userId: string): any {
-  const appHost = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`;
+  const appHost = (process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`).replace(/\/$/, '');
   const boardUrl = `${appHost}/board?user=${encodeURIComponent(userId)}`;
 
   const groups: StatusGroup[] = STATUS_ORDER.map((status) => ({
