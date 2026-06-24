@@ -28,9 +28,15 @@ RUN npm install --omit=dev && npm cache clean --force
 # Copy compiled output from builder
 COPY --from=builder /app/dist ./dist
 
-# Non-root user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Non-root user + persistent data directory
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+ && mkdir -p /app/data && chown appuser:appgroup /app/data
+
 USER appuser
+
+VOLUME ["/app/data"]
+
+ENV SQLITE_PATH=/app/data/data.sqlite
 
 EXPOSE 3000
 
