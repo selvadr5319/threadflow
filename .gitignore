@@ -24,3 +24,8 @@ npm-debug.log*
 
 # Docker
 *.pid
+
+# SQLite database
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
