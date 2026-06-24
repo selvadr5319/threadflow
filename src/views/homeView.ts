@@ -150,7 +150,7 @@ export function buildHomeView(tasks: Task[]): any {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: '🗂️  My Kanban Board',
+        text: '🗂️  My Threadflow',
         emoji: true,
       },
     },
