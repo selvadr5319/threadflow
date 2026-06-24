@@ -6,7 +6,7 @@ dotenv.config();
 
 const dbPath = process.env.SQLITE_PATH ?? path.join(process.cwd(), 'data.sqlite');
 
-export const db = new Database(dbPath);
+export const db: Database.Database = new Database(dbPath);
 
 // WAL mode — better concurrent read performance
 db.pragma('journal_mode = WAL');
