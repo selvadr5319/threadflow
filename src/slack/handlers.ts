@@ -138,57 +138,40 @@ export function registerHandlers(app: App): void {
   });
 
   // ─────────────────────────────────────────────
-  //  Task status transitions
+  //  Card overflow menu — move or delete
+  //  value format: "move||<status>||<taskId>"  or  "delete||<taskId>"
   // ─────────────────────────────────────────────
 
-  const statusActions: Array<{ actionId: string; targetStatus: TaskStatus }> = [
-    { actionId: 'task_status_Backlog',     targetStatus: 'Backlog'     },
-    { actionId: 'task_status_In_Progress', targetStatus: 'In Progress' },
-    { actionId: 'task_status_Waiting',     targetStatus: 'Waiting'     },
-    { actionId: 'task_status_Done',        targetStatus: 'Done'        },
-  ];
-
-  for (const { actionId, targetStatus } of statusActions) {
-    app.action(actionId, async ({ ack, action, body, client, logger }) => {
-      await ack();
-
-      const userId = body.user.id;
-      const taskId = 'value' in action ? action.value ?? '' : '';
-
-      logger.info(`[Action] ${actionId} — task:${taskId} user:${userId}`);
-
-      try {
-        const updated = await updateTaskStatus({ taskId, userId, status: targetStatus });
-        if (!updated) {
-          logger.warn(`[Action] Task ${taskId} not found or not owned by ${userId}`);
-        }
-        await publishHomeView(client, userId);
-      } catch (err) {
-        logger.error('[Action] Status update failed:', err);
-      }
-    });
-  }
-
-  // ─────────────────────────────────────────────
-  //  Delete task
-  // ─────────────────────────────────────────────
-
-  app.action('task_delete', async ({ ack, action, body, client, logger }) => {
+  app.action('card_overflow', async ({ ack, action, body, client, logger }) => {
     await ack();
 
     const userId = body.user.id;
-    const taskId = 'value' in action ? action.value ?? '' : '';
+    const selected = 'selected_option' in action
+      ? (action as any).selected_option?.value ?? ''
+      : '';
 
-    logger.info(`[Action] task_delete — task:${taskId} user:${userId}`);
+    logger.info(`[Action] card_overflow — value:${selected} user:${userId}`);
 
     try {
-      const deleted = await deleteTask(taskId, userId);
-      if (!deleted) {
-        logger.warn(`[Action] Task ${taskId} not found or not owned by ${userId}`);
+      const parts = selected.split('||');
+
+      if (parts[0] === 'move' && parts.length === 3) {
+        const [, status, taskId] = parts;
+        const updated = await updateTaskStatus({ taskId, userId, status: status as TaskStatus });
+        if (!updated) logger.warn(`[Action] Task ${taskId} not found or not owned by ${userId}`);
+
+      } else if (parts[0] === 'delete' && parts.length === 2) {
+        const [, taskId] = parts;
+        const deleted = await deleteTask(taskId, userId);
+        if (!deleted) logger.warn(`[Action] Task ${taskId} not found or not owned by ${userId}`);
+
+      } else {
+        logger.warn('[Action] card_overflow: unrecognised value:', selected);
       }
+
       await publishHomeView(client, userId);
     } catch (err) {
-      logger.error('[Action] Delete failed:', err);
+      logger.error('[Action] card_overflow failed:', err);
     }
   });
 

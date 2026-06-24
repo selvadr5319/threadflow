@@ -1,143 +1,83 @@
 import type { Task, TaskStatus, StatusGroup } from '../types';
 
-// ─────────────────────────────────────────────
-//  Status configuration
-// ─────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<TaskStatus, { emoji: string; color: string }> = {
-  Backlog:       { emoji: '📋', color: '#6B7280' },
-  'In Progress': { emoji: '🔄', color: '#3B82F6' },
-  Waiting:       { emoji: '⏳', color: '#F59E0B' },
-  Done:          { emoji: '✅', color: '#10B981' },
+const STATUS_CONFIG: Record<TaskStatus, { emoji: string }> = {
+  Backlog:       { emoji: '📋' },
+  'In Progress': { emoji: '🔄' },
+  Waiting:       { emoji: '⏳' },
+  Done:          { emoji: '✅' },
 };
 
 const STATUS_ORDER: TaskStatus[] = ['Backlog', 'In Progress', 'Waiting', 'Done'];
 
-// ─────────────────────────────────────────────
-//  Next-status button definitions per column
-// ─────────────────────────────────────────────
+const MAX_IN_GRID = 8;
 
-interface ActionButton {
-  text: string;
-  targetStatus: TaskStatus;
-  style?: 'primary' | 'danger';
-}
-
-const COLUMN_ACTIONS: Record<TaskStatus, ActionButton[]> = {
-  Backlog: [
-    { text: '▶ Start', targetStatus: 'In Progress', style: 'primary' },
-  ],
-  'In Progress': [
-    { text: '⏸ Wait',   targetStatus: 'Waiting' },
-    { text: '✔ Done',   targetStatus: 'Done',   style: 'primary' },
-  ],
-  Waiting: [
-    { text: '▶ Resume', targetStatus: 'In Progress', style: 'primary' },
-    { text: '✔ Done',   targetStatus: 'Done' },
-  ],
-  Done: [
-    { text: '↩ Reopen', targetStatus: 'Backlog' },
-  ],
-};
-
-// ─────────────────────────────────────────────
-//  Helpers
-// ─────────────────────────────────────────────
-
-/** Format a Date to a human-readable short string. */
 function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return new Date(date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 }
 
-/** Truncate text for card preview. */
 function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-// ─────────────────────────────────────────────
-//  buildTaskCard
-// ─────────────────────────────────────────────
+function buildColumnField(status: TaskStatus, tasks: Task[]): { type: string; text: string } {
+  const { emoji } = STATUS_CONFIG[status];
+  const header = `*${emoji}  ${status.toUpperCase()}*  \`${tasks.length}\``;
 
-/**
- * Render a single Kanban task card as a Block Kit section + actions.
- */
+  if (tasks.length === 0) {
+    return { type: 'mrkdwn', text: `${header}\n_No cards yet_` };
+  }
+
+  const visible = tasks.slice(0, MAX_IN_GRID);
+  const lines = visible.map((t) => `• ${truncate(t.title, 35)}`);
+  if (tasks.length > MAX_IN_GRID) {
+    lines.push(`_+${tasks.length - MAX_IN_GRID} more…_`);
+  }
+
+  return { type: 'mrkdwn', text: `${header}\n${lines.join('\n')}` };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildTaskCard(task: Task): any[] {
-  const config = STATUS_CONFIG[task.status];
-  const actions = COLUMN_ACTIONS[task.status];
+  const otherStatuses = STATUS_ORDER.filter((s) => s !== task.status);
 
-  const blocks: unknown[] = [
-    // ── Card header ─────────────────────────────
+  const overflowOptions = [
+    ...otherStatuses.map((s) => ({
+      text: { type: 'plain_text', text: `${STATUS_CONFIG[s].emoji}  Move to ${s}`, emoji: true },
+      value: `move||${s}||${task.id}`,
+    })),
+    {
+      text: { type: 'plain_text', text: '🗑  Delete card', emoji: true },
+      value: `delete||${task.id}`,
+    },
+  ];
+
+  const permalink = task.slackPermalink ? `<${task.slackPermalink}|↗ Slack>` : '';
+  const meta = [permalink, `👤 <@${task.createdBy}>`, `🗓 ${formatDate(task.createdAt)}`]
+    .filter(Boolean)
+    .join('  ·  ');
+
+  return [
     {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*${truncate(task.title, 80)}*\n<${task.slackPermalink}|View original message>  •  ${config.emoji} ${task.status}`,
+        text: `*${truncate(task.title, 80)}*\n${meta}`,
+      },
+      accessory: {
+        type: 'overflow',
+        action_id: 'card_overflow',
+        options: overflowOptions,
       },
     },
-    // ── Meta row ────────────────────────────────
-    {
-      type: 'context',
-      elements: [
-        {
-          type: 'mrkdwn',
-          text: `👤 <@${task.createdBy}>  •  📅 ${formatDate(task.createdAt)}`,
-        },
-      ],
-    },
-    // ── Action buttons ───────────────────────────
-    {
-      type: 'actions',
-      elements: [
-        ...actions.map((action) => ({
-          type: 'button',
-          text: { type: 'plain_text', text: action.text, emoji: true },
-          ...(action.style ? { style: action.style } : {}),
-          action_id: `task_status_${action.targetStatus.replace(/ /g, '_')}`,
-          value: task.id,
-        })),
-        // Delete button
-        {
-          type: 'button',
-          text: { type: 'plain_text', text: '🗑 Delete', emoji: true },
-          style: 'danger',
-          action_id: 'task_delete',
-          value: task.id,
-          confirm: {
-            title: { type: 'plain_text', text: 'Delete task?' },
-            text: {
-              type: 'mrkdwn',
-              text: `Are you sure you want to delete *"${truncate(task.title, 50)}"*? This cannot be undone.`,
-            },
-            confirm: { type: 'plain_text', text: 'Yes, delete' },
-            deny:    { type: 'plain_text', text: 'Cancel' },
-            style: 'danger',
-          },
-        },
-      ],
-    },
-    // ── Divider ─────────────────────────────────
     { type: 'divider' },
   ];
-
-  return blocks;
 }
 
-// ─────────────────────────────────────────────
-//  buildHomeView
-// ─────────────────────────────────────────────
-
-/**
- * Compose the full App Home Tab view from a list of tasks.
- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function buildHomeView(tasks: Task[], userId: string): any {
-  const boardUrl = `http://localhost:${process.env.PORT ?? '3000'}/board?user=${encodeURIComponent(userId)}`;
-  // Group tasks by status
+  const appHost = process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`;
+  const boardUrl = `${appHost}/board?user=${encodeURIComponent(userId)}`;
+
   const groups: StatusGroup[] = STATUS_ORDER.map((status) => ({
     status,
     emoji: STATUS_CONFIG[status].emoji,
@@ -146,21 +86,16 @@ export function buildHomeView(tasks: Task[], userId: string): any {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks: any[] = [
-    // ── Hero header ─────────────────────────────
     {
       type: 'header',
-      text: {
-        type: 'plain_text',
-        text: '🗂️  My Threadflow',
-        emoji: true,
-      },
+      text: { type: 'plain_text', text: '🗂️  My Threadflow', emoji: true },
     },
     {
       type: 'context',
       elements: [
         {
           type: 'mrkdwn',
-          text: `You have *${tasks.length}* task${tasks.length !== 1 ? 's' : ''} across all columns.  Use the *"Add to Board"* message shortcut to create tasks from any Slack message.`,
+          text: `*${tasks.length}* task${tasks.length !== 1 ? 's' : ''} on your board.  Right-click any message › *More shortcuts* › *Add to Board* to create a card.`,
         },
       ],
     },
@@ -169,7 +104,7 @@ export function buildHomeView(tasks: Task[], userId: string): any {
       elements: [
         {
           type: 'button',
-          text: { type: 'plain_text', text: '🖥  Open Kanban Board', emoji: true },
+          text: { type: 'plain_text', text: '🖥  Open full board', emoji: true },
           style: 'primary',
           url: boardUrl,
           action_id: 'open_board',
@@ -177,50 +112,60 @@ export function buildHomeView(tasks: Task[], userId: string): any {
       ],
     },
     { type: 'divider' },
+
+    // ── 2×2 Kanban grid (side-by-side columns) ──
+    {
+      type: 'section',
+      fields: [
+        buildColumnField('Backlog',     groups[0].tasks),
+        buildColumnField('In Progress', groups[1].tasks),
+      ],
+    },
+    { type: 'divider' },
+    {
+      type: 'section',
+      fields: [
+        buildColumnField('Waiting', groups[2].tasks),
+        buildColumnField('Done',    groups[3].tasks),
+      ],
+    },
+    { type: 'divider' },
+
+    // ── Individual cards with ⋮ move/delete ──
+    {
+      type: 'context',
+      elements: [{ type: 'mrkdwn', text: `*Manage cards* — tap  ⋮  to move or delete` }],
+    },
   ];
 
-  // ── Columns ─────────────────────────────────
   for (const group of groups) {
-    const count = group.tasks.length;
-
-    // Column header
     blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `${group.emoji}  *${group.status}*  _(${count} task${count !== 1 ? 's' : ''})_`,
+        text: `${group.emoji}  *${group.status}*  \`${group.tasks.length}\``,
       },
     });
 
-    if (count === 0) {
+    if (group.tasks.length === 0) {
       blocks.push({
         type: 'context',
-        elements: [
-          { type: 'mrkdwn', text: '_No tasks here yet._' },
-        ],
+        elements: [{ type: 'mrkdwn', text: '_No cards here yet._' }],
       });
     } else {
       for (const task of group.tasks) {
         blocks.push(...buildTaskCard(task));
       }
     }
-
-    blocks.push({ type: 'divider' });
   }
 
-  // ── Footer ───────────────────────────────────
+  blocks.push({ type: 'divider' });
   blocks.push({
     type: 'context',
     elements: [
-      {
-        type: 'mrkdwn',
-        text: '💡  Right-click any Slack message › *More message shortcuts* › *Add to Board* to create a task.',
-      },
+      { type: 'mrkdwn', text: '💡  For full drag-and-drop, open the board in your browser.' },
     ],
   });
 
-  return {
-    type: 'home',
-    blocks,
-  };
+  return { type: 'home', blocks };
 }
