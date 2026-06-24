@@ -1,4 +1,4 @@
-# 🗂️ Slack Kanban Board
+# 🗂️ Threadflow
 
 A lightweight, production-quality Kanban board that lives entirely inside Slack. Convert any message into a task, manage it through a **Backlog → In Progress → Waiting → Done** workflow, all from your App Home tab — no external browser tab required.
 
@@ -9,7 +9,7 @@ A lightweight, production-quality Kanban board that lives entirely inside Slack.
 | Feature | Detail |
 |---|---|
 | **Message Shortcut** | Right-click any message → *Add to Board* |
-| **Personal Kanban Board** | App Home tab shows your tasks grouped by status column |
+| **Personal Threadflow Board** | App Home tab shows your tasks grouped by status column |
 | **One-click transitions** | Start, Wait, Done, Reopen buttons on every card |
 | **Deep links** | Every card links back to the original Slack message |
 | **Ephemeral confirmations** | Instant feedback when tasks are created |
@@ -123,7 +123,7 @@ curl http://localhost:3000/status
 
 ### Step 4 — Test in Slack
 
-1. Open Slack and find the **Kanban Board** app in your sidebar
+1. Open Slack and find the **Threadflow** app in your sidebar
 2. Click **App Home** tab — you should see your empty board
 3. Go to any channel, hover over any message, click **⋮ More actions** → **Add to Board**
 4. A confirmation ephemeral will appear and your board will update

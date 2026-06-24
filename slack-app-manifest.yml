@@ -3,20 +3,24 @@ _metadata:
   minor_version: 1
 
 display_information:
-  name: Kanban Board
-  description: Turn Slack messages into tasks and manage them from a Kanban board in your App Home tab.
+  name: Threadflow
+  description: Turn Slack conversations into actionable work. Stop losing tasks in the noise.
   background_color: "#1a1d21"
   long_description: |
-    Kanban Board lets you convert any Slack message into a task with a single click,
-    then manage those tasks through a Backlog → In Progress → Waiting → Done workflow
-    without ever leaving Slack.
+    Threadflow turns Slack threads into tracked tasks — without leaving Slack.
+
+    Right-click any message, hit "Add to Board", and it becomes a Kanban card on your
+    App Home board. Move it through Backlog → In Progress → Waiting → Done with one click.
+    No copy-pasting into Jira. No saved-for-later graveyards. No missed follow-ups.
 
     Features:
-    • "Add to Board" message shortcut on any message
+    • "Add to Board" message shortcut — one click from any channel or DM
     • Personal Kanban board in your App Home tab
     • One-click status transitions (Start, Wait, Done, Reopen)
-    • Delete tasks with confirmation
-    • Ephemeral confirmation when tasks are created
+    • Every card links back to the original Slack message
+    • Delete tasks with confirmation dialog
+    • Instant ephemeral confirmation when a task is created
+    • Board refreshes automatically after every action
 
 features:
   app_home:
@@ -31,7 +35,7 @@ features:
       description: Add this message as a task on your Kanban board
 
   bot_user:
-    display_name: Kanban Board
+    display_name: Threadflow
     always_online: true
 
 oauth_config:

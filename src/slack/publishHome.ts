@@ -10,7 +10,7 @@ import { buildHomeView } from '../views/homeView';
 export async function publishHomeView(client: any, userId: string): Promise<void> {
   try {
     const tasks = await getTasksForUser(userId);
-    const view  = buildHomeView(tasks);
+    const view  = buildHomeView(tasks, userId);
 
     await client.views.publish({ user_id: userId, view });
   } catch (err) {
