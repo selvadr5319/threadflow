@@ -34,8 +34,6 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
 
 USER appuser
 
-VOLUME ["/app/data"]
-
 ENV SQLITE_PATH=/app/data/data.sqlite
 
 EXPOSE 3000
