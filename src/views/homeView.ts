@@ -135,7 +135,8 @@ export function buildTaskCard(task: Task): any[] {
  * Compose the full App Home Tab view from a list of tasks.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function buildHomeView(tasks: Task[]): any {
+export function buildHomeView(tasks: Task[], userId: string): any {
+  const boardUrl = `http://localhost:${process.env.PORT ?? '3000'}/board?user=${encodeURIComponent(userId)}`;
   // Group tasks by status
   const groups: StatusGroup[] = STATUS_ORDER.map((status) => ({
     status,
@@ -160,6 +161,18 @@ export function buildHomeView(tasks: Task[]): any {
         {
           type: 'mrkdwn',
           text: `You have *${tasks.length}* task${tasks.length !== 1 ? 's' : ''} across all columns.  Use the *"Add to Board"* message shortcut to create tasks from any Slack message.`,
+        },
+      ],
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: { type: 'plain_text', text: '🖥  Open Kanban Board', emoji: true },
+          style: 'primary',
+          url: boardUrl,
+          action_id: 'open_board',
         },
       ],
     },

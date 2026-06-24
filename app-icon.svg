@@ -1,0 +1,50 @@
+<svg width="512" height="512" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="100" height="100" rx="18" fill="#0E602A"/>
+
+  <!-- Subtle inner glow rim -->
+  <rect x="1" y="1" width="98" height="98" rx="17" stroke="white" stroke-width="0.5" stroke-opacity="0.12"/>
+
+  <!-- Horizontal thread spine -->
+  <line x1="20" y1="30" x2="80" y2="30" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-opacity="0.35"/>
+
+  <!-- Thread message nodes (top row = Slack thread) -->
+  <circle cx="28" cy="30" r="8" fill="white"/>
+  <circle cx="50" cy="30" r="8" fill="white"/>
+  <circle cx="72" cy="30" r="8" fill="white"/>
+
+  <!-- Message icon dots inside circles (inbox feel) -->
+  <circle cx="28" cy="30" r="2.5" fill="#0E602A" opacity="0.5"/>
+  <circle cx="50" cy="30" r="2.5" fill="#0E602A" opacity="0.5"/>
+  <circle cx="72" cy="30" r="2.5" fill="#0E602A" opacity="0.5"/>
+
+  <!-- Downward connectors (thread → board) -->
+  <line x1="28" y1="38" x2="28" y2="52" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-opacity="0.55"/>
+  <line x1="50" y1="38" x2="50" y2="52" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-opacity="0.55"/>
+  <line x1="72" y1="38" x2="72" y2="52" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-opacity="0.55"/>
+
+  <!-- Arrowheads -->
+  <polyline points="25.5,49 28,52.5 30.5,49" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-opacity="0.6"/>
+  <polyline points="47.5,49 50,52.5 52.5,49" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-opacity="0.6"/>
+  <polyline points="69.5,49 72,52.5 74.5,49" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-opacity="0.6"/>
+
+  <!-- Kanban cards (bottom row) -->
+  <rect x="17" y="54" width="22" height="24" rx="3.5" fill="white"/>
+  <rect x="39" y="54" width="22" height="24" rx="3.5" fill="white"/>
+  <rect x="61" y="54" width="22" height="24" rx="3.5" fill="white"/>
+
+  <!-- Card accent bar (top of each card) -->
+  <rect x="17" y="54" width="22" height="4" rx="3.5" fill="#0E602A" opacity="0.25"/>
+  <rect x="39" y="54" width="22" height="4" rx="3.5" fill="#0E602A" opacity="0.25"/>
+  <rect x="61" y="54" width="22" height="4" rx="3.5" fill="#0E602A" opacity="0.25"/>
+
+  <!-- Card task lines -->
+  <rect x="21" y="62" width="13" height="2.5" rx="1.25" fill="#0E602A" opacity="0.6"/>
+  <rect x="21" y="67" width="9"  height="2.5" rx="1.25" fill="#0E602A" opacity="0.35"/>
+
+  <rect x="43" y="62" width="13" height="2.5" rx="1.25" fill="#0E602A" opacity="0.6"/>
+  <rect x="43" y="67" width="9"  height="2.5" rx="1.25" fill="#0E602A" opacity="0.35"/>
+
+  <rect x="65" y="62" width="13" height="2.5" rx="1.25" fill="#0E602A" opacity="0.6"/>
+  <rect x="65" y="67" width="9"  height="2.5" rx="1.25" fill="#0E602A" opacity="0.35"/>
+</svg>

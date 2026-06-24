@@ -7,6 +7,8 @@ import { testConnection } from './db/pool';
 import { runMigrations } from './db/migrate';
 import { registerHandlers } from './slack/handlers';
 import healthRouter from './routes/health';
+import tasksRouter from './routes/tasks';
+import boardRouter from './routes/board';
 
 // ─────────────────────────────────────────────
 //  Validate required environment variables
@@ -38,6 +40,8 @@ const receiver = new ExpressReceiver({
 // Mount our own routes on the same Express app
 receiver.app.use(express.json());
 receiver.app.use(healthRouter);
+receiver.app.use(tasksRouter);
+receiver.app.use(boardRouter);
 
 // ─────────────────────────────────────────────
 //  Bolt App
