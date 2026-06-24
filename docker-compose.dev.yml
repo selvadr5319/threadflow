@@ -1,0 +1,17 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────
+#  Development overrides
+#  Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# ─────────────────────────────────────────────
+
+services:
+  app:
+    build:
+      target: builder            # Use the build stage (includes devDeps)
+    command: npm run dev:watch   # Hot-reload via nodemon
+    volumes:
+      - ./src:/app/src:ro        # Mount source for live reload
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug

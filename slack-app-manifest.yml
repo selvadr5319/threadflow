@@ -1,0 +1,60 @@
+_metadata:
+  major_version: 1
+  minor_version: 1
+
+display_information:
+  name: Kanban Board
+  description: Turn Slack messages into tasks and manage them from a Kanban board in your App Home tab.
+  background_color: "#1a1d21"
+  long_description: |
+    Kanban Board lets you convert any Slack message into a task with a single click,
+    then manage those tasks through a Backlog → In Progress → Waiting → Done workflow
+    without ever leaving Slack.
+
+    Features:
+    • "Add to Board" message shortcut on any message
+    • Personal Kanban board in your App Home tab
+    • One-click status transitions (Start, Wait, Done, Reopen)
+    • Delete tasks with confirmation
+    • Ephemeral confirmation when tasks are created
+
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: false
+    messages_tab_read_only_enabled: false
+
+  shortcuts:
+    - name: Add to Board
+      type: message
+      callback_id: add_to_board
+      description: Add this message as a task on your Kanban board
+
+  bot_user:
+    display_name: Kanban Board
+    always_online: true
+
+oauth_config:
+  scopes:
+    bot:
+      - app_mentions:read
+      - channels:history
+      - chat:write
+      - chat:write.public
+      - commands
+      - groups:history
+      - im:history
+      - mpim:history
+      - users:read
+
+settings:
+  event_subscriptions:
+    bot_events:
+      - app_home_opened
+
+  interactivity:
+    is_enabled: true
+
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

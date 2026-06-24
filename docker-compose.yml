@@ -1,0 +1,64 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────
+#  Shared network
+# ─────────────────────────────────────────────
+networks:
+  kanban:
+    driver: bridge
+
+# ─────────────────────────────────────────────
+#  Named volumes
+# ─────────────────────────────────────────────
+volumes:
+  pgdata:
+
+services:
+  # ─────────────────────────────────────────────
+  #  PostgreSQL 16
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       slack_kanban
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - kanban
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d slack_kanban']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  #  Slack Kanban App
+  # ─────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      target: runtime            # Use the production stage
+    restart: unless-stopped
+    env_file:
+      - .env                     # Copy .env.example → .env and fill in values
+    environment:
+      POSTGRES_HOST: postgres    # Override host to use the compose service name
+      POSTGRES_PORT: '5432'
+      NODE_ENV: production
+    ports:
+      - '${PORT:-3000}:3000'
+    networks:
+      - kanban
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  #  Development override (optional)
+  #  Run with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+  # ─────────────────────────────────────────────
