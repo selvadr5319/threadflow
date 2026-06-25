@@ -209,10 +209,17 @@ See **`schema.sql`** for the complete schema including indexes and the `updated_
 
 ## 🔄 Task Lifecycle
 
-```
-Backlog ──▶ In Progress ──▶ Waiting
-                │               │
-                └───────────────┴──▶ Done ──▶ Backlog (Reopen)
+```mermaid
+stateDiagram-v2
+    [*] --> Backlog
+    state "In Progress" as InProgress
+
+    Backlog --> InProgress: ▶ Start
+    InProgress --> Waiting: ⏸ Wait
+    InProgress --> Done: ✔ Done
+    Waiting --> InProgress: ▶ Resume
+    Waiting --> Done: ✔ Done
+    Done --> Backlog: ↩ Reopen
 ```
 
 | Column | Available buttons |

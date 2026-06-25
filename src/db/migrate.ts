@@ -21,5 +21,9 @@ const MIGRATION_SQL = /* sql */ `
 export async function runMigrations(): Promise<void> {
   console.log('[DB] Running migrations…');
   db.exec(MIGRATION_SQL);
+
+  // Idempotent column additions — safe to re-run on existing DBs
+  try { db.exec('ALTER TABLE tasks ADD COLUMN message_author_id TEXT'); } catch { /* already exists */ }
+
   console.log('[DB] Migrations complete ✓');
 }
