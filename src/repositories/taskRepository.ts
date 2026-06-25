@@ -1,32 +1,35 @@
-import { pool } from '../db/pool';
-import type { Task, TaskRow, TaskStatus } from '../types';
+import { randomUUID } from 'crypto';
+import { db } from '../db/pool';
+import type { Task, TaskStatus } from '../types';
 
-// ─────────────────────────────────────────────
-//  Row ↔ Domain mapper
-// ─────────────────────────────────────────────
+interface SqliteTaskRow {
+  id: string;
+  title: string;
+  description: string | null;
+  slack_channel_id: string;
+  slack_message_ts: string;
+  slack_permalink: string;
+  status: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
 
-function rowToTask(row: TaskRow): Task {
+function rowToTask(row: SqliteTaskRow): Task {
   return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    slackChannelId: row.slack_channel_id,
-    slackMessageTs: row.slack_message_ts,
-    slackPermalink: row.slack_permalink,
-    status: row.status as TaskStatus,
-    createdBy: row.created_by,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    id:              row.id,
+    title:           row.title,
+    description:     row.description,
+    slackChannelId:  row.slack_channel_id,
+    slackMessageTs:  row.slack_message_ts,
+    slackPermalink:  row.slack_permalink,
+    status:          row.status as TaskStatus,
+    createdBy:       row.created_by,
+    createdAt:       new Date(row.created_at),
+    updatedAt:       new Date(row.updated_at),
   };
 }
 
-// ─────────────────────────────────────────────
-//  Repository
-// ─────────────────────────────────────────────
-
-/**
- * Insert a new task and return the created record.
- */
 export async function insertTask(params: {
   title: string;
   description: string | null;
@@ -35,88 +38,61 @@ export async function insertTask(params: {
   slackPermalink: string;
   createdBy: string;
 }): Promise<Task> {
-  const { rows } = await pool.query<TaskRow>(
-    /* sql */ `
+  const id = randomUUID();
+
+  db.prepare(/* sql */ `
     INSERT INTO tasks
-      (title, description, slack_channel_id, slack_message_ts, slack_permalink, created_by)
+      (id, title, description, slack_channel_id, slack_message_ts, slack_permalink, created_by)
     VALUES
-      ($1, $2, $3, $4, $5, $6)
-    RETURNING *
-    `,
-    [
-      params.title,
-      params.description,
-      params.slackChannelId,
-      params.slackMessageTs,
-      params.slackPermalink,
-      params.createdBy,
-    ],
+      (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    params.title,
+    params.description,
+    params.slackChannelId,
+    params.slackMessageTs,
+    params.slackPermalink,
+    params.createdBy,
   );
 
-  return rowToTask(rows[0]);
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as SqliteTaskRow;
+  return rowToTask(row);
 }
 
-/**
- * Fetch all tasks belonging to a specific Slack user, newest first.
- */
 export async function findTasksByUser(userId: string): Promise<Task[]> {
-  const { rows } = await pool.query<TaskRow>(
-    /* sql */ `
-    SELECT * FROM tasks
-    WHERE created_by = $1
-    ORDER BY created_at DESC
-    `,
-    [userId],
-  );
+  const rows = db.prepare(/* sql */ `
+    SELECT * FROM tasks WHERE created_by = ? ORDER BY created_at DESC
+  `).all(userId) as SqliteTaskRow[];
 
   return rows.map(rowToTask);
 }
 
-/**
- * Update the status column for a task, scoped to the owning user
- * to prevent cross-user mutations.
- */
 export async function updateStatus(
   taskId: string,
   userId: string,
   status: TaskStatus,
 ): Promise<Task | null> {
-  const { rows } = await pool.query<TaskRow>(
-    /* sql */ `
-    UPDATE tasks
-    SET    status = $1
-    WHERE  id = $2 AND created_by = $3
-    RETURNING *
-    `,
-    [status, taskId, userId],
-  );
+  const now = new Date().toISOString();
 
-  return rows.length ? rowToTask(rows[0]) : null;
+  const result = db.prepare(/* sql */ `
+    UPDATE tasks SET status = ?, updated_at = ? WHERE id = ? AND created_by = ?
+  `).run(status, now, taskId, userId);
+
+  if (result.changes === 0) return null;
+
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as SqliteTaskRow;
+  return rowToTask(row);
 }
 
-/**
- * Hard-delete a task, scoped to the owning user.
- */
 export async function deleteTask(taskId: string, userId: string): Promise<boolean> {
-  const { rowCount } = await pool.query(
-    /* sql */ `
-    DELETE FROM tasks
-    WHERE id = $1 AND created_by = $2
-    `,
-    [taskId, userId],
-  );
+  const result = db.prepare(/* sql */ `
+    DELETE FROM tasks WHERE id = ? AND created_by = ?
+  `).run(taskId, userId);
 
-  return (rowCount ?? 0) > 0;
+  return result.changes > 0;
 }
 
-/**
- * Fetch a single task by id (used for validation before actions).
- */
 export async function findTaskById(taskId: string): Promise<Task | null> {
-  const { rows } = await pool.query<TaskRow>(
-    /* sql */ `SELECT * FROM tasks WHERE id = $1`,
-    [taskId],
-  );
-
-  return rows.length ? rowToTask(rows[0]) : null;
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as SqliteTaskRow | undefined;
+  return row ? rowToTask(row) : null;
 }
