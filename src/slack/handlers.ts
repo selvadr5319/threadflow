@@ -1,6 +1,7 @@
 import type { App } from '@slack/bolt';
 import { publishHomeView } from './publishHome';
 import { createTask, updateTaskStatus, deleteTask } from '../services/taskService';
+import { FILTER_ORDER, filterActionId } from '../views/homeView';
 import type { TaskStatus } from '../types';
 
 /**
@@ -82,35 +83,46 @@ export function registerHandlers(app: App): void {
 
       logger.info(`[Task] Created task ${task.id} for user ${userId}`);
 
-      // Send ephemeral confirmation (only possible if we have a channelId)
-      if (channelId) {
-        await client.chat.postEphemeral({
-          channel: channelId,
-          user: userId,
-          text: `✅ Task added to your Kanban board! Open the *App Home* tab to see it.`,
-          blocks: [
-            {
-              type: 'section',
-              text: {
-                type: 'mrkdwn',
-                text: `✅ *Task added to Backlog!*\n"${task.title.slice(0, 80)}"`,
-              },
-            },
-            {
-              type: 'context',
-              elements: [
-                {
-                  type: 'mrkdwn',
-                  text: 'Open the *App Home* tab to manage your board.',
-                },
-              ],
-            },
-          ],
-        });
-      }
-
-      // Refresh home view
+      // Refresh home view — this is the primary result the user sees, so do
+      // it before the best-effort confirmation below.
       await publishHomeView(client, userId);
+
+      // Send ephemeral confirmation — strictly best-effort. The bot may not be
+      // a member of the source channel (Slack returns `channel_not_found` /
+      // `not_in_channel`), which must NOT make an already-created task look
+      // like a failure or skip the home refresh above.
+      if (channelId) {
+        try {
+          await client.chat.postEphemeral({
+            channel: channelId,
+            user: userId,
+            text: `✅ Task added to your Kanban board! Open the *App Home* tab to see it.`,
+            blocks: [
+              {
+                type: 'section',
+                text: {
+                  type: 'mrkdwn',
+                  text: `✅ *Task added to Backlog!*\n"${task.title.slice(0, 80)}"`,
+                },
+              },
+              {
+                type: 'context',
+                elements: [
+                  {
+                    type: 'mrkdwn',
+                    text: 'Open the *App Home* tab to manage your board.',
+                  },
+                ],
+              },
+            ],
+          });
+        } catch (confirmErr) {
+          logger.warn(
+            '[Shortcut] Task created, but could not post the confirmation message:',
+            confirmErr,
+          );
+        }
+      }
 
     } catch (err) {
       logger.error('[Shortcut] Failed to create task:', err);
@@ -191,6 +203,21 @@ export function registerHandlers(app: App): void {
       logger.error('[Action] Delete failed:', err);
     }
   });
+
+  // ─────────────────────────────────────────────
+  //  Filter pills — re-render the home view for the
+  //  chosen status (or All). The selection sticks for
+  //  the user via publishHomeView's stored filter.
+  // ─────────────────────────────────────────────
+
+  for (const filter of FILTER_ORDER) {
+    app.action(filterActionId(filter), async ({ ack, body, client, logger }) => {
+      await ack();
+      const userId = body.user.id;
+      logger.info(`[Filter] ${filter} selected by user ${userId}`);
+      await publishHomeView(client, userId, filter);
+    });
+  }
 
   // ─────────────────────────────────────────────
   //  Catch-all for unhandled actions (debug)
