@@ -15,6 +15,7 @@ export interface Task {
   slackPermalink: string;
   status: TaskStatus;
   createdBy: string;
+  messageAuthorId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +48,7 @@ export interface CreateTaskInput {
   slackMessageTs: string;
   slackPermalink: string;
   createdBy: string;
+  messageAuthorId?: string;
 }
 
 export interface UpdateTaskStatusInput {

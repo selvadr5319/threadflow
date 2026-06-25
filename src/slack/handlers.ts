@@ -73,12 +73,15 @@ export function registerHandlers(app: App): void {
         }
       }
 
+      const messageAuthorId: string | undefined = (shortcut.message as any)?.user ?? undefined;
+
       const task = await createTask({
         title: messageText.trim() || 'Untitled task',
         slackChannelId: channelId,
         slackMessageTs: messageTs,
         slackPermalink: permalink,
         createdBy: userId,
+        messageAuthorId,
       });
 
       logger.info(`[Task] Created task ${task.id} for user ${userId}`);

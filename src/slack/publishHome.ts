@@ -1,5 +1,5 @@
 import { getTasksForUser } from '../services/taskService';
-import { buildHomeView, type HomeFilter } from '../views/homeView';
+import { buildHomeView, type HomeFilter, type UserProfile } from '../views/homeView';
 
 /**
  * Remembers each user's currently-selected filter so it persists across
@@ -24,7 +24,22 @@ export async function publishHomeView(client: any, userId: string, filter?: Home
     const activeFilter = userFilters.get(userId) ?? 'All';
 
     const tasks = await getTasksForUser(userId);
-    const view  = buildHomeView(tasks, userId, activeFilter);
+
+    // Fetch profiles for the original message authors (falling back to card creator for legacy tasks)
+    const uniqueAuthors = [...new Set(tasks.map((t) => t.messageAuthorId ?? t.createdBy))];
+    const profiles = new Map<string, UserProfile>();
+    await Promise.all(uniqueAuthors.map(async (uid) => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const res: any = await client.users.info({ user: uid });
+        profiles.set(uid, {
+          name: res.user?.profile?.display_name_normalized || res.user?.real_name || uid,
+          avatar: res.user?.profile?.image_72 ?? '',
+        });
+      } catch { /* skip — card falls back to mention text */ }
+    }));
+
+    const view  = buildHomeView(tasks, userId, activeFilter, profiles);
 
     await client.views.publish({ user_id: userId, view });
   } catch (err) {

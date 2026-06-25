@@ -1,4 +1,4 @@
-import type { Task, TaskStatus, StatusGroup } from '../types';
+import type { Task, TaskStatus } from '../types';
 
 const STATUS_CONFIG: Record<TaskStatus, { emoji: string }> = {
   Backlog:       { emoji: '📋' },
@@ -8,8 +8,6 @@ const STATUS_CONFIG: Record<TaskStatus, { emoji: string }> = {
 };
 
 const STATUS_ORDER: TaskStatus[] = ['Backlog', 'In Progress', 'Waiting', 'Done'];
-
-const MAX_IN_GRID = 8;
 
 // ─────────────────────────────────────────────
 //  Filters
@@ -43,21 +41,13 @@ function truncate(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function buildColumnField(status: TaskStatus, tasks: Task[]): { type: string; text: string } {
-  const { emoji } = STATUS_CONFIG[status];
-  const header = `*${emoji}  ${status.toUpperCase()}*  \`${tasks.length}\``;
+// ─────────────────────────────────────────────
+//  UserProfile  (resolved at render time)
+// ─────────────────────────────────────────────
 
-  if (tasks.length === 0) {
-    return { type: 'mrkdwn', text: `${header}\n_No cards yet_` };
-  }
-
-  const visible = tasks.slice(0, MAX_IN_GRID);
-  const lines = visible.map((t) => `• ${truncate(t.title, 35)}`);
-  if (tasks.length > MAX_IN_GRID) {
-    lines.push(`_+${tasks.length - MAX_IN_GRID} more…_`);
-  }
-
-  return { type: 'mrkdwn', text: `${header}\n${lines.join('\n')}` };
+export interface UserProfile {
+  name: string;
+  avatar: string;
 }
 
 // ─────────────────────────────────────────────
@@ -65,7 +55,7 @@ function buildColumnField(status: TaskStatus, tasks: Task[]): { type: string; te
 // ─────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function buildTaskCard(task: Task): any[] {
+export function buildTaskCard(task: Task, profile?: UserProfile): any[] {
   const otherStatuses = STATUS_ORDER.filter((s) => s !== task.status);
 
   const overflowOptions = [
@@ -79,18 +69,31 @@ export function buildTaskCard(task: Task): any[] {
     },
   ];
 
-  const permalink = task.slackPermalink ? `<${task.slackPermalink}|↗ Slack>` : '';
-  const meta = [permalink, `👤 <@${task.createdBy}>`, `🗓 ${formatDate(task.createdAt)}`]
-    .filter(Boolean)
-    .join('  ·  ');
+  const { emoji } = STATUS_CONFIG[task.status];
+  const authorId = task.messageAuthorId ?? task.createdBy;
+  const displayName = profile?.name ?? `<@${authorId}>`;
+  const dateStr = formatDate(task.createdAt);
 
-  return [
+  // Header row: avatar (if available) + "Name  ·  date  ·  status"
+  const headerElements: object[] = [];
+  if (profile?.avatar) {
+    headerElements.push({ type: 'image', image_url: profile.avatar, alt_text: displayName });
+  }
+  headerElements.push({
+    type: 'mrkdwn',
+    text: `*${displayName}*  ·  ${dateStr}  ·  ${emoji} ${task.status}`,
+  });
+
+  // Title is a link to the original Slack message if a permalink exists
+  const titleText = task.slackPermalink
+    ? `<${task.slackPermalink}|${truncate(task.title, 120)}>`
+    : truncate(task.title, 120);
+
+  const blocks: object[] = [
+    { type: 'context', elements: headerElements },
     {
       type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `*${truncate(task.title, 80)}*\n${meta}`,
-      },
+      text: { type: 'mrkdwn', text: titleText },
       accessory: {
         type: 'overflow',
         action_id: 'card_overflow',
@@ -99,6 +102,8 @@ export function buildTaskCard(task: Task): any[] {
     },
     { type: 'divider' },
   ];
+
+  return blocks;
 }
 
 // ─────────────────────────────────────────────
@@ -109,29 +114,22 @@ export function buildTaskCard(task: Task): any[] {
  * Compose the App Home Tab view.
  *
  * Layout: header → filter pills (All / Backlog / In Progress / Waiting / Done)
- * → an at-a-glance 2×2 column overview of the whole board → a detailed,
- * manageable card list narrowed to the active filter.
+ * → a detailed, manageable card list narrowed to the active filter.
  *
- * The overview grid always summarises every column; the pills only narrow the
- * detailed "Manage cards" list below, and the active pill persists per user.
+ * The pills narrow the "Manage cards" list, and the active pill persists per user.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function buildHomeView(tasks: Task[], userId: string, activeFilter: HomeFilter = 'All'): any {
+export function buildHomeView(tasks: Task[], userId: string, activeFilter: HomeFilter = 'All', profiles: Map<string, UserProfile> = new Map()): any {
   const appHost = (process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? '3000'}`).replace(/\/$/, '');
   const boardUrl = `${appHost}/board?user=${encodeURIComponent(userId)}`;
-
-  const groups: StatusGroup[] = STATUS_ORDER.map((status) => ({
-    status,
-    emoji: STATUS_CONFIG[status].emoji,
-    tasks: tasks.filter((t) => t.status === status),
-  }));
 
   const countFor = (f: HomeFilter): number =>
     f === 'All' ? tasks.length : tasks.filter((t) => t.status === f).length;
 
-  const visibleGroups = activeFilter === 'All'
-    ? groups
-    : groups.filter((g) => g.status === activeFilter);
+  // Cards for the active filter, ordered by status so the flat list stays tidy.
+  const statusRank = (s: TaskStatus): number => STATUS_ORDER.indexOf(s);
+  const visibleTasks = (activeFilter === 'All' ? [...tasks] : tasks.filter((t) => t.status === activeFilter))
+    .sort((a, b) => statusRank(a.status) - statusRank(b.status));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const blocks: any[] = [
@@ -171,63 +169,24 @@ export function buildHomeView(tasks: Task[], userId: string, activeFilter: HomeF
       ],
     },
     { type: 'divider' },
-
-    // ── 2×2 Kanban grid (side-by-side columns, always the full board) ──
-    {
-      type: 'section',
-      fields: [
-        buildColumnField('Backlog',     groups[0].tasks),
-        buildColumnField('In Progress', groups[1].tasks),
-      ],
-    },
-    { type: 'divider' },
-    {
-      type: 'section',
-      fields: [
-        buildColumnField('Waiting', groups[2].tasks),
-        buildColumnField('Done',    groups[3].tasks),
-      ],
-    },
-    { type: 'divider' },
-
-    // ── Detailed cards (filtered) with ⋮ move/delete ──
-    {
-      type: 'context',
-      elements: [{
-        type: 'mrkdwn',
-        text: activeFilter === 'All'
-          ? '*Manage cards* — tap  ⋮  to move or delete'
-          : `*Manage cards* — showing *${activeFilter}*  ·  tap  ⋮  to move or delete`,
-      }],
-    },
   ];
 
-  for (const group of visibleGroups) {
+  // ── Cards (filtered) with ⋮ move/delete ──
+  if (visibleTasks.length === 0) {
     blocks.push({
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: `${group.emoji}  *${group.status}*  \`${group.tasks.length}\``,
-      },
+      type: 'context',
+      elements: [{ type: 'mrkdwn', text: '_No cards yet._' }],
     });
-
-    if (group.tasks.length === 0) {
-      blocks.push({
-        type: 'context',
-        elements: [{ type: 'mrkdwn', text: '_No cards here yet._' }],
-      });
-    } else {
-      for (const task of group.tasks) {
-        blocks.push(...buildTaskCard(task));
-      }
+  } else {
+    for (const task of visibleTasks) {
+      blocks.push(...buildTaskCard(task, profiles.get(task.messageAuthorId ?? task.createdBy)));
     }
   }
 
-  blocks.push({ type: 'divider' });
   blocks.push({
     type: 'context',
     elements: [
-      { type: 'mrkdwn', text: '💡  For full drag-and-drop, open the board in your browser.' },
+      { type: 'mrkdwn', text: '💡  Tap  ⋮  on a card to move or delete  ·  open the board in your browser for drag-and-drop.' },
     ],
   });
 

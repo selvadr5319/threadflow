@@ -20,6 +20,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     slackMessageTs: input.slackMessageTs,
     slackPermalink: input.slackPermalink,
     createdBy: input.createdBy,
+    messageAuthorId: input.messageAuthorId,
   });
 }
 
